@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "DashAI": {
+      "commandName": "Project"
+    },
+    "Docker": {
+      "commandName": "Docker"
+    }
+  }
+}
