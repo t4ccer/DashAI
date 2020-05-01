@@ -2,6 +2,6 @@
 {
     public interface IMap
     {
-        public int[,] map { get;}
+        public int[,] map { get; }
     }
 }

@@ -1,4 +1,7 @@
 ﻿using SharpNeat.Phenomes;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace DashAI
 {
@@ -25,13 +28,24 @@ namespace DashAI
         {
             phenome.ResetState();
 
-            for (int y = 0; y < NeatConsts.ViewY; y++)
+            foreach (int typeID in NeatConsts.typeIds)
             {
-                for (int x = 0; x < NeatConsts.ViewX; x++)
+                for (int y = 0; y < NeatConsts.ViewY; y++)
                 {
-                    phenome.InputSignalArray[y * NeatConsts.ViewX + x] = game.map.map[game.player.position.y + 3 - y, game.player.position.x + x];
+                    for (int x = 0; x < NeatConsts.ViewX; x++)
+                    {
+                        var xpos = game.player.position.x + x;
+                        var ypos = game.player.position.y + (NeatConsts.ViewY/2) - y;
+                        var index = typeID * (y * NeatConsts.ViewX + x);
+                        if (ypos < 0 || xpos < 0 || ypos >= game.map.map.GetLength(0) || xpos >= game.map.map.GetLength(1))
+                            phenome.InputSignalArray[index] = 0;
+                        else
+                            phenome.InputSignalArray[index] = (game.map.map[ypos, xpos]) == typeID ? 1 : 0;
+                    }
                 }
             }
+
+
             phenome.Activate();
             game.Step(phenome.OutputSignalArray[0] > 0.5);
         }

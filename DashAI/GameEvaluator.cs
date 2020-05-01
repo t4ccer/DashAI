@@ -17,7 +17,6 @@ namespace DashAI
             if (game.hasWon)
             {
                 shouldEnd = true;
-                fitness *= 2;
             }
             return new FitnessInfo(fitness, fitness);
         }

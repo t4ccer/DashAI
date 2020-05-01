@@ -7,7 +7,7 @@ namespace DashAI
 {
     public class Game : IDisposable
     {
-        public IMap map = new BmpMap("MapA.bmp");
+        public IMap map = new BmpMap(NeatConsts.MapName);
         public Player player;
         public bool hasEnded = false;
         public bool hasWon = false;
@@ -39,7 +39,7 @@ namespace DashAI
             switch (player.jumpPhase)
             {
                 case 0:
-                    if (jump && map.map[player.position.y + 1, player.position.x] == 1)
+                    if (jump && (map.map[player.position.y + 1, player.position.x] == 1 || map.map[player.position.y, player.position.x] == 3))
                     {
                         player.jumpPhase = 1;
                         player.position.y--;
@@ -99,11 +99,11 @@ namespace DashAI
                 for (int x = 0; x < map.map.GetLength(1); x++)
                 {
                     var rect = new RectangleShape(new Vector2f(NeatConsts.TileSize, NeatConsts.TileSize));
-                    rect.FillColor = new Color(0, 0, 0);
+                    rect.FillColor = new Color(255, 255, 255);
                     rect.Position = new Vector2f(NeatConsts.TileSize * x, NeatConsts.TileSize * y);
                     if (player.position.x == x && player.position.y == y)
                     {
-                        rect.FillColor = new Color(0, 255, 0);
+                        rect.FillColor = new Color(255, 175, 0);
                         window.Draw(rect);
                         continue;
                     }
@@ -111,19 +111,25 @@ namespace DashAI
                     switch (map.map[y, x])
                     {
                         case 0:
-                            rect.FillColor = new Color(0, 0, 0);
+                            rect.FillColor = new Color(255, 255, 255);
                             break;
                         case 1:
-                            rect.FillColor = new Color(255, 255, 255);
+                            rect.FillColor = new Color(0, 0, 0);
                             break;
                         case 2:
                             rect.FillColor = new Color(255, 0, 0);
+                            break;
+                        case 3:
+                            rect.FillColor = new Color(0, 255, 0);
                             break;
                     }
                     window.Draw(rect);
                 }
             }
+            window.DispatchEvents();
             window.Display();
+            if(NeatConsts.RecordPlay)
+                window.Capture().SaveToFile($"{NeatConsts.experimentName}/step{player.position.x}.png");
         }
         private void HandleDeath()
         {

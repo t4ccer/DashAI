@@ -14,6 +14,7 @@ namespace DashAI
             var bmp = new Bitmap(path);
             var groundColor = Color.FromArgb(0, 0, 0);
             var spikesColor = Color.FromArgb(255, 0, 0);
+            var jumpOrb = Color.FromArgb(0, 255, 0);
             map = new int[bmp.Height, bmp.Width];
 
 
@@ -21,7 +22,11 @@ namespace DashAI
             {
                 for (int x = 0; x < bmp.Width; x++)
                 {
-                    map[y, x] = (bmp.GetPixel(x, y) == groundColor) ? 1 : (bmp.GetPixel(x, y) == spikesColor) ? 2 : 0;
+                    map[y, x] = 
+                          (bmp.GetPixel(x, y) == groundColor) ? 1 
+                        : (bmp.GetPixel(x, y) == spikesColor) ? 2 
+                        : (bmp.GetPixel(x,y) == jumpOrb) ? 3 
+                        :0;
                 }
             }
         }

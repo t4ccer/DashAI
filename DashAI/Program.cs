@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -20,38 +21,27 @@ namespace DashAI
 
     class Program
     {
-        public static Queue<(IBlackBox phenome, uint gen, double fitness)> blackBoxes = new Queue<(IBlackBox phenome, uint gen, double fitness)>();
-        static void Main()
+        static void Main(string[] args)
         {
-            if(NeatConsts.ShowDuringTraining)
-                new Thread(() =>
-                {
-                    while (true)
-                    {
-                        if (blackBoxes.Count == 0)
-                        {
-                            Thread.Sleep(10);
-                            continue;
-                        }
-                        using var game = new Game(true);
-                        var data = blackBoxes.Dequeue();
-                        Console.WriteLine($"Showing gen {data.gen} with fitness {data.fitness}");
-                        var brain = new BlackBoxBrain(data.phenome, game);
+            Directory.CreateDirectory(NeatConsts.experimentName);
 
-                        while (!game.hasEnded)
-                        {
-                            brain.Step();
-                            Thread.Sleep(200);
-                        }
-                    }
-                }).Start();
+            if (args.Contains("-h") || (!args.Contains("-t") && !args.Contains("-p")))
+            {
+                Console.WriteLine("Using: DashAI OPTIONS");
+                Console.WriteLine("OPTIONS:");
+                Console.WriteLine("\t-h Show this info");
+                Console.WriteLine("\t-t Train network");
+                Console.WriteLine("\t-p Play game");
+            }
 
-            Train();
-            Play();
+            if (args.Contains("-t"))
+                Train();
+            if(args.Contains("-p"))
+                Play();
         }
         private static void Play()
         {
-            var neatGenomeFactory = new NeatGenomeFactory(NeatConsts.ViewX * NeatConsts.ViewY, 1);
+            var neatGenomeFactory = new NeatGenomeFactory(NeatConsts.ViewX * NeatConsts.ViewY * NeatConsts.typeIds.Count, 1);
             var activationScheme = NetworkActivationScheme.CreateCyclicFixedTimestepsScheme(1);
             var genomeDecoder = new NeatGenomeDecoder(activationScheme);
             XmlReader xr;
@@ -59,7 +49,7 @@ namespace DashAI
             {
                 try
                 {
-                    xr = XmlReader.Create("best.xml");
+                    xr = XmlReader.Create($"{NeatConsts.experimentName}/best.xml");
                     break;
                 }
                 catch (Exception)
@@ -81,16 +71,25 @@ namespace DashAI
         }
         private static void Train()
         {
-            var neatGenomeFactory = new NeatGenomeFactory(NeatConsts.ViewX * NeatConsts.ViewY, 1);
+            File.WriteAllText($"{NeatConsts.experimentName}/fitness.csv", "generation,firness\n");
+
+            var neatGenomeFactory = new NeatGenomeFactory(NeatConsts.ViewX * NeatConsts.ViewY * NeatConsts.typeIds.Count, 1);
             var genomeList = neatGenomeFactory.CreateGenomeList(NeatConsts.SpecCount, 0);
+            var eaParams = new NeatEvolutionAlgorithmParameters
+            {
+                SpecieCount = NeatConsts.SpecCount
+            };
 
-            var eaParams = new NeatEvolutionAlgorithmParameters();
-            eaParams.SpecieCount = NeatConsts.SpecCount;
+            //var distanceMetric = new ManhattanDistanceMetric(1.0, 0.0, 10.0);
+            var distanceMetric = new ManhattanDistanceMetric();
 
-            var distanceMetric = new ManhattanDistanceMetric(1.0, 0.0, 10.0);
             var parallelOptions = new ParallelOptions();
             var speciationStrategy = new ParallelKMeansClusteringStrategy<NeatGenome>(distanceMetric, parallelOptions);
+            //var speciationStrategy = new KMeansClusteringStrategy<NeatGenome>(distanceMetric);
+            //var speciationStrategy = new RandomClusteringStrategy<NeatGenome>();
+
             var complexityRegulationStrategy = new NullComplexityRegulationStrategy();
+            //var complexityRegulationStrategy = new DefaultComplexityRegulationStrategy(ComplexityCeilingType.Relative, 0.50);
 
             var ea = new NeatEvolutionAlgorithm<NeatGenome>(eaParams, speciationStrategy, complexityRegulationStrategy);
             var activationScheme = NetworkActivationScheme.CreateCyclicFixedTimestepsScheme(1);
@@ -101,37 +100,26 @@ namespace DashAI
             ea.UpdateScheme = new UpdateScheme(NeatConsts.LogRate);
             ea.StartContinue();
             ea.UpdateEvent += Ea_UpdateEvent;
-            //while (ea.RunState != RunState.Paused)
-            //{
+            while (ea.RunState != RunState.Paused)
+            {
 
-            //}
-            Console.ReadLine();
+            }
             ea.Stop();
-            Thread.Sleep(1000);
         }
         private static void Ea_UpdateEvent(object sender, EventArgs e)
         {
             NeatEvolutionAlgorithm<NeatGenome> _ea = (NeatEvolutionAlgorithm<NeatGenome>)sender;
-            if(NeatConsts.ShowDuringTraining)
-            {
-                var activationScheme = NetworkActivationScheme.CreateCyclicFixedTimestepsScheme(1);
-                var genomeDecoder = new NeatGenomeDecoder(activationScheme);
-                var genome = _ea.CurrentChampGenome;
-                var phenome = genomeDecoder.Decode(genome);
-                blackBoxes.Enqueue((phenome, _ea.CurrentGeneration, _ea.Statistics._maxFitness));
-            }
-            else
-                Console.WriteLine($"gen={_ea.CurrentGeneration:N0} bestFitness={_ea.Statistics._maxFitness:N6}, meanFitness={_ea.Statistics._meanFitness}");
 
+            Console.WriteLine($"gen={_ea.CurrentGeneration:N0} bestFitness={_ea.Statistics._maxFitness:N6}, meanFitness={_ea.Statistics._meanFitness}");
 
-
+            File.AppendAllText($"{NeatConsts.experimentName}/fitness.csv", $"{_ea.CurrentGeneration},{_ea.Statistics._maxFitness.ToString().Replace(',', '.')}\n");
             CreateDotFile(_ea);
             CreateXmlNetworkFile(_ea);
         }
         private static void CreateXmlNetworkFile(NeatEvolutionAlgorithm<NeatGenome> _ea)
         {
             var doc = NeatGenomeXmlIO.SaveComplete(new List<NeatGenome>() { _ea.CurrentChampGenome }, false);
-            doc.Save("best.xml");
+            doc.Save($"{NeatConsts.experimentName}/best.xml");
         }
         private static void CreateDotFile(NeatEvolutionAlgorithm<NeatGenome> _ea)
         {
@@ -163,10 +151,10 @@ namespace DashAI
             }
             foreach (var connection in _ea.CurrentChampGenome.ConnectionGeneList)
             {
-                sb.AppendLine($"\"{names[connection.SourceNodeId]}\" -> \"{names[connection.TargetNodeId]}\" [label=\"{connection.Weight.ToString("N3")}\"] [color={((connection.Weight > 0) ? "red" : "blue")}]");
+                sb.AppendLine($"\"{names[connection.SourceNodeId]}\" -> \"{names[connection.TargetNodeId]}\" [label=\"{connection.Weight:N3}\"] [color={((connection.Weight > 0) ? "red" : "blue")}]");
             }
             sb.AppendLine("}");
-            File.WriteAllText("best.gv", sb.ToString());
+            File.WriteAllText($"{NeatConsts.experimentName}/best.gv", sb.ToString());
         }
     }
 }
