@@ -15,6 +15,7 @@ using SharpNeat.EvolutionAlgorithms.ComplexityRegulation;
 using SharpNeat.Genomes.Neat;
 using SharpNeat.Phenomes;
 using SharpNeat.SpeciationStrategies;
+using t4ccer.EzParams;
 
 namespace DashAI
 {
@@ -23,20 +24,32 @@ namespace DashAI
     {
         static void Main(string[] args)
         {
-            Directory.CreateDirectory(NeatConsts.experimentName);
+            new ParamsParser(string.Join(string.Empty, args), "DashAI")
+                .WithParameter(out bool train, "--train", "-t", "Train network")
+                .WithParameter(out bool play, "--play", "-p", "Let network play game")
+                .WithParameter(out string mapName, "--map", "-m", "Path to map", "Map.bmp")
+                .WithParameter(out string outputDir, "--output", "-o", "Output directory", "output/foobar")
+                .WithDefaultHelpParameter(out bool help);
 
-            if (args.Contains("-h") || (!args.Contains("-t") && !args.Contains("-p")))
+            if (help)
+                return;
+
+            if(!play && !train)
             {
-                Console.WriteLine("Using: DashAI OPTIONS");
-                Console.WriteLine("OPTIONS:");
-                Console.WriteLine("\t-h Show this info");
-                Console.WriteLine("\t-t Train network");
-                Console.WriteLine("\t-p Play game");
+                Console.WriteLine("DashAi --help for usage info");
+                return;
             }
 
-            if (args.Contains("-t"))
+            NeatConsts.MapName = mapName;
+            NeatConsts.experimentName = outputDir;
+
+            Directory.CreateDirectory(NeatConsts.experimentName);
+
+            
+
+            if (train)
                 Train();
-            if(args.Contains("-p"))
+            if(play)
                 Play();
         }
         private static void Play()
